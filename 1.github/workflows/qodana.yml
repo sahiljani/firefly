@@ -1,37 +1,77 @@
-name: Qodana
+name: Deploy to cPanel via FTP
+
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
-      - develop
-  pull_request:
-    types: [ opened, synchronize, reopened ]
-jobs:
-  qodana:
-    runs-on: ubuntu-latest
-    name: 'Qodana Scan'
-    steps:
-      - name: Setup PHP with no coverage driver
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          coverage: none
-          extensions: bcmath, intl
-        env:
-          update: true
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-      - name: Install dependencies
-        run: |
-          composer install --no-scripts
-          cp .env.example .env
-          php artisan key:generate
-          php artisan clear-compiled
-          php artisan ide-helper:generate;
 
-      - name: 'Qodana Scan'
-        uses: JetBrains/qodana-action@main
-        env:
-          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+jobs:
+  ftp-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, bcmath
+
+    - name: Install Composer Dependencies
+      run: composer install --no-dev --prefer-dist --optimize-autoloader
+
+    - name: Install Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '18'  # Use Node.js version 18 or higher
+
+    - name: Clear Node Modules and Cache
+      run: |
+        rm -rf node_modules
+        npm cache clean --force
+
+    - name: Install NPM Dependencies
+      run: npm install
+
+    - name: Run NPM Audit Fix
+      run: npm audit fix
+
+    - name: Update Webpack Configuration
+      run: |
+        echo "Updating Webpack configuration in webpack.mix.js"
+        echo "mix.webpackConfig({
+          resolve: {
+            extensions: ['*', '.js', '.jsx', '.vue', '.json']
+          }
+        });" >> webpack.mix.js
+
+    - name: Build Assets
+      run: npm run production
+
+    - name: Deploy via FTP
+      uses: SamKirkland/FTP-Deploy-Action@4.2.0
+      with:
+        server: ftp.sahiljani.dev
+        username: account@sahiljani.dev
+        password: 12wyactrg0qn
+        local-dir: ./  
+        server-dir: /public_html/
+
+    - name: Generate Application Key
+      run: php artisan key:generate --force
+      env:
+        APP_ENV: production
+        APP_DEBUG: false
+
+    - name: Run Migrations on Server
+      env:
+        DB_CONNECTION: mysql
+        DB_HOST: localhost
+        DB_PORT: 3306
+        DB_DATABASE: sahilja1_firefly
+        DB_USERNAME: sahilja1_firefly
+        DB_PASSWORD: firefly@123
+      run: php artisan migrate --force
+      shell: bash

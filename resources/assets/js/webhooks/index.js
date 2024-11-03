@@ -18,7 +18,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import Index from "../components/webhooks";
+import Webhooks from '../components/webhooks'; // Adjust if necessary
+
 
 /**
  * First we will load Axios via bootstrap.js
