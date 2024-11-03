@@ -3,7 +3,7 @@ name: Deploy to cPanel via FTP
 on:
   push:
     branches:
-      - main  # Trigger deployment on pushes to the main branch
+      - main
 
 jobs:
   ftp-deploy:
@@ -16,8 +16,8 @@ jobs:
     - name: Set up PHP
       uses: shivammathur/setup-php@v2
       with:
-        php-version: '8.0'  # Specify your PHP version
-        extensions: mbstring, bcmath  # Include necessary PHP extensions for Laravel
+        php-version: '8.2'
+        extensions: mbstring, bcmath
 
     - name: Install Composer Dependencies
       run: composer install --no-dev --prefer-dist --optimize-autoloader
@@ -25,13 +25,28 @@ jobs:
     - name: Install Node.js
       uses: actions/setup-node@v2
       with:
-        node-version: '16'  # Use your preferred Node.js version
+        node-version: '16'
+
+    - name: Clear Node Modules and Cache
+      run: |
+        rm -rf node_modules
+        npm cache clean --force
 
     - name: Install NPM Dependencies
       run: npm install
 
+    - name: Update Webpack Configuration
+      run: |
+        echo "Updating Webpack configuration in webpack.mix.js"
+        # Ensure Webpack can detect .js, .vue, and other common extensions
+        echo "mix.webpackConfig({
+          resolve: {
+            extensions: ['*', '.js', '.jsx', '.vue', '.json']
+          }
+        });" >> webpack.mix.js
+
     - name: Build Assets
-      run: npm run production  # Compile assets for production
+      run: npm run production
 
     - name: Deploy via FTP
       uses: SamKirkland/FTP-Deploy-Action@4.2.0
@@ -39,8 +54,14 @@ jobs:
         server: ftp.sahiljani.dev
         username: account@sahiljani.dev
         password: 12wyactrg0qn
-        local-dir: ./  # Directory in GitHub repo to upload from
-        server-dir: /public_html/  # Directory on the server where files should go
+        local-dir: ./  
+        server-dir: /public_html/
+
+    - name: Generate Application Key
+      run: php artisan key:generate --force
+      env:
+        APP_ENV: production
+        APP_DEBUG: false
 
     - name: Run Migrations on Server
       env:
@@ -50,6 +71,5 @@ jobs:
         DB_DATABASE: sahilja1_firefly
         DB_USERNAME: sahilja1_firefly
         DB_PASSWORD: firefly@123
-      run: |
-        php artisan migrate --force  # Run migrations in production mode
+      run: php artisan migrate --force
       shell: bash
