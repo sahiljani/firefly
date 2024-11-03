@@ -22,7 +22,7 @@ let mix = require('laravel-mix');
 
 mix.webpackConfig({
     resolve: {
-        extensions: ['*', '.js', '.jsx', '.vue', '.json'],
+        extensions: [".*",".wasm",".mjs",".js",".jsx",".json",".vue"],
         alias: {
             'vue$': 'vue/dist/vue.runtime.common.js'
         },
