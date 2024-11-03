@@ -1,0 +1,55 @@
+name: Deploy to cPanel via FTP
+
+on:
+  push:
+    branches:
+      - main  # Trigger deployment on pushes to the main branch
+
+jobs:
+  ftp-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v2
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.0'  # Specify your PHP version
+        extensions: mbstring, bcmath  # Include necessary PHP extensions for Laravel
+
+    - name: Install Composer Dependencies
+      run: composer install --no-dev --prefer-dist --optimize-autoloader
+
+    - name: Install Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '16'  # Use your preferred Node.js version
+
+    - name: Install NPM Dependencies
+      run: npm install
+
+    - name: Build Assets
+      run: npm run production  # Compile assets for production
+
+    - name: Deploy via FTP
+      uses: SamKirkland/FTP-Deploy-Action@4.2.0
+      with:
+        server: ftp.sahiljani.dev
+        username: account@sahiljani.dev
+        password: 12wyactrg0qn
+        local-dir: ./  # Directory in GitHub repo to upload from
+        server-dir: /public_html/  # Directory on the server where files should go
+
+    - name: Run Migrations on Server
+      env:
+        DB_CONNECTION: mysql
+        DB_HOST: localhost
+        DB_PORT: 3306
+        DB_DATABASE: sahilja1_firefly
+        DB_USERNAME: sahilja1_firefly
+        DB_PASSWORD: firefly@123
+      run: |
+        php artisan migrate --force  # Run migrations in production mode
+      shell: bash
